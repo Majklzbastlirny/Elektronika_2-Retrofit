@@ -16,7 +16,7 @@ int dot[] = {0,0,0,0,0,0}; //pole ovládání teček displejů
 int mode = 0; //režim zobrazení
 int secs = 0;
 bool dot5 = 0;
-
+bool alarm = 0;
 
 
 
@@ -49,12 +49,15 @@ time_t t = now(); //obnovení času z časovače
 if(dcf.synced()){
   setTime(dt.hour,dt.min,dt.sec,dt.day,dt.month,dt.year); //synchronizace DCF a vnitřních hodin
 }
+
+
  if (second(t) != secs){  //obládání blikání oddělovače. 
    dot5 = 1;
    timer = millis();
    secs = second(t);
  }
- if (millis() > timer + 500){
+ 
+ if (millis() > timer + 100){ //100ms pro alarm flag = 1, 500ms pro alarm flag = 0
   dot5 = 0;
  }
 
@@ -75,11 +78,11 @@ if(dcf.synced()){
   zobraz[3] = minute(t) % 10;
   zobraz[4] = second(t) / 10;
   zobraz[5] = second(t) % 10;
-  dot[0] = 0;
-  dot[1] = 0;
-  dot[2] = 0;
-  dot[3] = 0;
-  dot[4] = 0;
+  dot[0] = 1;
+  dot[1] = 1;
+  dot[2] = 1;
+  dot[3] = 1;
+  dot[4] = 1;
   dot[5] = dot5;
 }
 
@@ -97,6 +100,22 @@ if (mode == 1){ //zápis údajů do bufferu displeje, datum
   dot[4] = 0;
   dot[5] = 0;
 }
+
+if (mode == 2){ //zápis údajů do bufferu displeje, budííííííík
+  zobraz[0] = day(t) / 10;
+  zobraz[1] = day(t) % 10;
+  zobraz[2] = month(t) / 10;
+  zobraz[3] = month(t) % 10;
+  zobraz[4] = (year(t) % 100) / 10;
+  zobraz[5] = (year(t) % 100) % 10;
+  dot[0] = 0;
+  dot[1] = 1;
+  dot[2] = 0;
+  dot[3] = 1;
+  dot[4] = 0;
+  dot[5] = 0;
+}
+
 if (micros() > multiplex + 1000){ //časové řízení multiplexu
   multiplex = micros();
 
