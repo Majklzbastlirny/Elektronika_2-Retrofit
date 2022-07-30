@@ -26,6 +26,9 @@ int ALMpos4 = 0;
 int ALMcounter = 0;
 int ALMidleflag = 0;
 bool ALMaltflag = 0;
+bool ALMon = 0;
+int ALMtime = 0;
+int ALMlimit = 5; //čas, po kterej může alarm znít
 
 #define Button1 A4 // Vrchní tlačítko, nastavení minut alarmu
 bool Button1state;
@@ -86,7 +89,7 @@ void loop() {
   }
 
   if (ALMaltflag == 1) {
-    if (ALMcounter == 1) {
+    if (ALMcounter == 1) { //360 = 1 minuta
       ALMidleflag++;
     }
   }
@@ -101,7 +104,7 @@ void loop() {
     ALMpos2 = 0;
     ALMpos3 = 0;
     ALMpos4 = 0;
-    
+
   }
 
   if ( Button4state == 1 && Button1state == 1 && ALMcounter == 1) {
@@ -146,6 +149,11 @@ void loop() {
     UpdateAlarm();
   }
 
+  if (Izostat1state == 1 && ALMpos1 == (hour(t) / 10) && ALMpos2 == (hour(t) % 10) && ALMpos3 == (minute(t) / 10) && ALMpos4 == (minute(t) % 10) && 0 == (second(t) / 10) && 0 == (second(t) % 10)) {
+    //tone(Piezo, 250, 1000);
+    ALMon = 1;
+  }
+if (ALMon == 1 && ALMtime > //pokud je ALARMflag ON a ALMtime je menší než 5 minut, tak dělej bordel
 
 
   if (second(t) != secs) { //obládání blikání oddělovače.
