@@ -23,12 +23,12 @@ int ALMpos1 = 0;
 int ALMpos2 = 0;
 int ALMpos3 = 0;
 int ALMpos4 = 0;
-int ALMcounter = 0;
-int ALMidleflag = 0;
+float ALMcounter = 0;
+float ALMidleflag = 0;
 bool ALMaltflag = 0;
 bool ALMon = 0;
-int ALMtime = 0;
-int ALMlimit = 5; //čas, po kterej může alarm znít
+float ALMtime = 0;
+int ALMlimit = 5; //čas, po kterej může alarm znít (mintuty)
 
 #define Button1 A4 // Vrchní tlačítko, nastavení minut alarmu
 bool Button1state;
@@ -71,91 +71,104 @@ void loop() {
   dcf.getTime(dt);
   time_t t = now(); //obnovení času z časovače
 
-  //delayMicroseconds(100);
-  /*Serial.print(Button1state);
-    Serial.print(Button2state);
-    Serial.print(Button3state);
-    Serial.print(Button4state);
-    Serial.print(Izostat1state);
-    Serial.println(Izostat2state);
-  */
   if (dcf.synced()) {
     setTime(dt.hour, dt.min, dt.sec, dt.day, dt.month, dt.year); //synchronizace DCF a vnitřních hodin
   }
-
   ALMcounter++;
   if (ALMcounter > 80) {
     ALMcounter = 0;
   }
+  if (ALMcounter == 1) {
+    if (ALMaltflag == 1) {
+      if (ALMcounter == 1) { //360 = 1 minuta
+        ALMidleflag++;
+      }
+    }
 
-  if (ALMaltflag == 1) {
-    if (ALMcounter == 1) { //360 = 1 minuta
-      ALMidleflag++;
+    if (ALMon == 1) {
+      if (ALMcounter == 1) { //360 = 1 minuta
+        ALMtime++;
+      }
+    }
+
+    if (Button4state == 1) {
+
+      if (Button3state == 1 && Button4state == 1) {
+        ALMidleflag = 0;
+
+        if (ALMaltflag == 0) {
+          ALMaltflag = 1;
+        }
+        ALMpos1 = 0;
+        ALMpos2 = 0;
+        ALMpos3 = 0;
+        ALMpos4 = 0;
+      }
+
+      if ( Button4state == 1 && Button1state == 1 && ALMcounter == 1) {
+        ALMpos2++;
+        ALMidleflag = 0;
+        if (ALMaltflag == 0) {
+          ALMaltflag = 1;
+        }
+
+        if (ALMpos2 > 9) {
+          ALMpos2 = 0;
+          ALMpos1++;
+        }
+
+        if (ALMpos1 == 2 && ALMpos2 == 4) {
+          ALMpos1 = 0;
+          ALMpos2 = 0;
+        }
+      }
+
+      if ( Button4state == 1 && Button2state == 1 && ALMcounter == 1) {
+        
+        ALMpos4++;
+        ALMidleflag = 0;
+        if (ALMaltflag == 0) {
+          ALMaltflag = 1;
+        }
+
+        if (ALMpos4 > 9) {
+          ALMpos4 = 0;
+          ALMpos3++;
+        }
+
+        if (ALMpos3 == 6 && ALMpos4 == 0) {
+          ALMpos3 = 0;
+          ALMpos4 = 0;
+        }
+      }
+      
+    }
+    if (ALMaltflag == 1 && ALMidleflag == 360) {
+      ALMaltflag = 0;
+      ALMidleflag = 0;
+      UpdateAlarm();
+    }
+
+    if (Izostat1state == 1 && ALMpos1 == (hour(t) / 10) && ALMpos2 == (hour(t) % 10) && ALMpos3 == (minute(t) / 10) && ALMpos4 == (minute(t) % 10) && 0 == (second(t) / 10) && 0 == (second(t) % 10)) {
+      //tone(Piezo, 250, 1000);
+      ALMon = 1;
+    }
+
+    if (ALMon == 1 && Izostat1state == 0) {    //pokud je ALARMflag ON a ALMtime je rovno nebo větší než 5 minut, tak vypni bordel
+      noTone(Piezo);
+      ALMon = 0;
+      ALMtime = 0;
+    }
+
+    if (ALMon == 1 && ALMtime > (ALMlimit * 720)) {  //pokud je ALARMflag ON a ALMtime je větší než 5 minut, tak vypni bordel
+      noTone(Piezo);
+      ALMon = 0;
+      ALMtime = 0;
+    }
+    if (ALMon == 1 && ALMtime < (ALMlimit * 720)) {  //pokud je ALARMflag ON a ALMtime je menší než 5 minut, tak dělej bordel
+      tone(Piezo, 250);
     }
   }
-
-
-  if (Button3state == 1 && Button4state == 1) {
-    ALMidleflag = 0;
-    if (ALMaltflag == 0) {
-      ALMaltflag = 1;
-    }
-    ALMpos1 = 0;
-    ALMpos2 = 0;
-    ALMpos3 = 0;
-    ALMpos4 = 0;
-
-  }
-
-  if ( Button4state == 1 && Button1state == 1 && ALMcounter == 1) {
-    ALMpos2++;
-    ALMidleflag = 0;
-    if (ALMaltflag == 0) {
-      ALMaltflag = 1;
-    }
-
-    if (ALMpos2 > 9) {
-      ALMpos2 = 0;
-      ALMpos1++;
-    }
-
-    if (ALMpos1 == 2 && ALMpos2 == 4) {
-      ALMpos1 = 0;
-      ALMpos2 = 0;
-    }
-  }
-
-  if ( Button4state == 1 && Button2state == 1 && ALMcounter == 1) {
-    ALMpos4++;
-    ALMidleflag = 0;
-    if (ALMaltflag == 0) {
-      ALMaltflag = 1;
-    }
-
-    if (ALMpos4 > 9) {
-      ALMpos4 = 0;
-      ALMpos3++;
-    }
-
-    if (ALMpos3 == 6 && ALMpos4 == 0) {
-      ALMpos3 = 0;
-      ALMpos4 = 0;
-    }
-  }
-
-  if (ALMaltflag == 1 && ALMidleflag == 360) {
-    ALMaltflag = 0;
-    ALMidleflag = 0;
-    UpdateAlarm();
-  }
-
-  if (Izostat1state == 1 && ALMpos1 == (hour(t) / 10) && ALMpos2 == (hour(t) % 10) && ALMpos3 == (minute(t) / 10) && ALMpos4 == (minute(t) % 10) && 0 == (second(t) / 10) && 0 == (second(t) % 10)) {
-    //tone(Piezo, 250, 1000);
-    ALMon = 1;
-  }
-if (ALMon == 1 && ALMtime > //pokud je ALARMflag ON a ALMtime je menší než 5 minut, tak dělej bordel
-
-
   if (second(t) != secs) { //obládání blikání oddělovače.
     dot5 = 1;
     timer = millis();
@@ -171,16 +184,20 @@ if (ALMon == 1 && ALMtime > //pokud je ALARMflag ON a ALMtime je menší než 5 
     if (millis() > timer + 500) { //100ms pro alarm flag = 1, 500ms pro alarm flag = 0
       dot5 = 0;
     }
+
   }
 
-  if (second(t) < 2) { //přepínání režimů zobrazení
+
+
+
+  if (second(t) == 59 ) { //přepínání režimů zobrazení
     mode = 1;
   }
   else {
     mode = 0;
   }
-
   GetData();
+
 
   if (mode == 0) { //zápis údajů do bufferu displeje, čas
     zobraz[0] = hour(t) / 10;
@@ -189,11 +206,11 @@ if (ALMon == 1 && ALMtime > //pokud je ALARMflag ON a ALMtime je menší než 5 
     zobraz[3] = minute(t) % 10;
     zobraz[4] = second(t) / 10;
     zobraz[5] = second(t) % 10;
-    dot[0] = Button1state;
-    dot[1] = Button2state;
-    dot[2] = Button3state;
-    dot[3] = Button4state;
-    dot[4] = Izostat2state;
+    dot[0] = 0;
+    dot[1] = 0;
+    dot[2] = 0;
+    dot[3] = 0;
+    dot[4] = 0;
     dot[5] = dot5;
   }
 
@@ -227,9 +244,9 @@ if (ALMon == 1 && ALMtime > //pokud je ALARMflag ON a ALMtime je menší než 5 
     dot[5] = dot5;
   }
 
-  if (micros() > multiplex + 100) { //časové řízení multiplexu
+  if (micros() > multiplex + 1000) { //časové řízení multiplexu
     multiplex = micros();
-    delay(1);
+    // delay(analogRead(A7));
     misto++;  //inkrementace přístupu multiplexu
 
 
