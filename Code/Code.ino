@@ -79,10 +79,13 @@ void loop() {
     setTime(dt.hour, dt.min, dt.sec, dt.day, dt.month, dt.year); //synchronizace DCF a vnitřních hodin
   }
   ALMcounter++;
+  displaycounter++;
   if (ALMcounter > 80) {
     ALMcounter = 0;
-
   }
+  if(displaycounter > 50){
+displaycounter = 0;
+    
   if (ALMcounter == 1) {
     if (ALMaltflag == 1) {
       if (ALMcounter == 1) { //360 = 1 minuta
@@ -203,7 +206,7 @@ void loop() {
   }
 
   GetData();
-
+  }
 
   if (mode == 0) { //zápis údajů do bufferu displeje, čas
     zobraz[0] = hour(t) / 10;
