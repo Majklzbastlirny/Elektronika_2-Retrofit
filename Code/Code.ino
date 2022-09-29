@@ -12,11 +12,13 @@ int znaky[] = {0b11110101, 0b00100001, 0b01110110, 0b00110111, 0b10100011, 0b100
 int shift = 0;  //číselný údaj pro seriový přenos
 int zobraz[] = {0, 0, 0, 0, 0, 0}; //buffer displeje
 int misto = 0;  //proměnná multiplexu 0-5
-long multiplex = 0; //konstanta pro časovač řídící multiplex
-long timer = 0; //konstanta pro časovač řídící blikání oddělovací LED
+int mistob = 0;
+float multiplex = 0; //konstanta pro časovač řídící multiplex
+float timer = 0; //konstanta pro časovač řídící blikání oddělovací LED
 int dot[] = {0, 0, 0, 0, 0, 0}; //pole ovládání teček displejů
 int mode = 0; //režim zobrazení
 int secs = 0;
+int displaycounter;
 bool dot5 = 0;
 
 int ALMpos1 = 0;
@@ -54,10 +56,11 @@ uint8_t curSec;
 
 
 void setup() {
-  //Serial.begin(115200);
+  Serial.begin(115200);
   pinMode(sck, OUTPUT);
   pinMode(sda, OUTPUT);
   pinMode(rclk, OUTPUT);
+  // Serial.println("amogus");
 
   dcf.init();
   ReviveAlarm();
@@ -71,13 +74,18 @@ void loop() {
   dcf.getTime(dt);
   time_t t = now(); //obnovení času z časovače
 
+
   if (dcf.synced()) {
     setTime(dt.hour, dt.min, dt.sec, dt.day, dt.month, dt.year); //synchronizace DCF a vnitřních hodin
   }
   ALMcounter++;
+  displaycounter++;
   if (ALMcounter > 80) {
     ALMcounter = 0;
   }
+  if(displaycounter > 50){
+displaycounter = 0;
+    
   if (ALMcounter == 1) {
     if (ALMaltflag == 1) {
       if (ALMcounter == 1) { //360 = 1 minuta
@@ -124,7 +132,7 @@ void loop() {
       }
 
       if ( Button4state == 1 && Button2state == 1 && ALMcounter == 1) {
-        
+
         ALMpos4++;
         ALMidleflag = 0;
         if (ALMaltflag == 0) {
@@ -141,7 +149,7 @@ void loop() {
           ALMpos4 = 0;
         }
       }
-      
+
     }
     if (ALMaltflag == 1 && ALMidleflag == 360) {
       ALMaltflag = 0;
@@ -166,7 +174,7 @@ void loop() {
       ALMtime = 0;
     }
     if (ALMon == 1 && ALMtime < (ALMlimit * 720)) {  //pokud je ALARMflag ON a ALMtime je menší než 5 minut, tak dělej bordel
-      tone(Piezo, 250);
+      tone(Piezo, 300);
     }
   }
   if (second(t) != secs) { //obládání blikání oddělovače.
@@ -196,8 +204,9 @@ void loop() {
   else {
     mode = 0;
   }
-  GetData();
 
+  GetData();
+  }
 
   if (mode == 0) { //zápis údajů do bufferu displeje, čas
     zobraz[0] = hour(t) / 10;
@@ -243,40 +252,15 @@ void loop() {
     dot[4] = 0;
     dot[5] = dot5;
   }
+  if (Izostat2state == 1) {
+    mistob++;
+    DISPLAYbright(0);
+  }
 
-  if (micros() > multiplex + 1000) { //časové řízení multiplexu
-    multiplex = micros();
-    // delay(analogRead(A7));
-    misto++;  //inkrementace přístupu multiplexu
-
-
-    if (misto > 5) {
-      misto = 0;
-
+  else {
+    for (misto = 0; misto <= 6; misto++) {
+      DISPLAYdim(misto);
     }
-
-
-
-    if (dot[misto] == 1) { //bitová maska řízení teček (u data) a sestavení vysílaného údaje
-      shift = znaky[zobraz[misto]] | 0b00001000;
-    }
-    else {
-      shift = znaky[zobraz[misto]] ;
-    }
-
-    shiftOut(sda, sck, LSBFIRST, shift); //seriový výstup dat k posuvnému registru
-
-    for (int i = 0; i <= 5; i++) { //zhasnutí předešlé segmentovky
-      digitalWrite(anody[i], HIGH);
-    }
-
-    digitalWrite(rclk, HIGH); //obnovení údaje v posuvném registru pomocí zabudovaného střadače
-    digitalWrite(rclk, LOW);
-    digitalWrite(anody[misto], LOW);
-
-
-
-
   }
 }
 
@@ -337,4 +321,55 @@ void UpdateAlarm() {
   EEPROM.update(1, ALMpos2);
   EEPROM.update(2, ALMpos3);
   EEPROM.update(3, ALMpos4);
+}
+
+void DISPLAYdim(int mistos) {
+
+  if (dot[mistos] == 1) { //bitová maska řízení teček (u data) a sestavení vysílaného údaje
+    shift = znaky[zobraz[misto]] | 0b00001000;
+  }
+  else {
+    shift = znaky[zobraz[mistos]] ;
+  }
+
+  shiftOut(sda, sck, LSBFIRST, shift); //seriový výstup dat k posuvnému registru
+
+  for (int i = 0; i <= 5; i++) { //zhasnutí předešlé segmentovky
+    digitalWrite(anody[i], HIGH);
+  }
+
+  digitalWrite(rclk, HIGH); //obnovení údaje v posuvném registru pomocí zabudovaného střadače
+  digitalWrite(rclk, LOW);
+  digitalWrite(anody[mistos], LOW);
+
+}
+
+void DISPLAYbright(int test) {
+  //Serial.println("mistob: " + String(mistob));
+
+
+  if (mistob > 5) {
+    mistob = 0;
+
+  }
+  if (dot[mistob] == 1) { //bitová maska řízení teček (u data) a sestavení vysílaného údaje
+    shift = znaky[zobraz[mistob]] | 0b00001000;
+  }
+  else {
+    shift = znaky[zobraz[mistob]] ;
+  }
+
+  shiftOut(sda, sck, LSBFIRST, shift); //seriový výstup dat k posuvnému registru
+
+  for (int i = 0; i <= 5; i++) { //zhasnutí předešlé segmentovky
+    digitalWrite(anody[i], HIGH);
+  }
+
+  digitalWrite(rclk, HIGH); //obnovení údaje v posuvném registru pomocí zabudovaného střadače
+  digitalWrite(rclk, LOW);
+  digitalWrite(anody[mistob], LOW);
+
+
+
+
 }
