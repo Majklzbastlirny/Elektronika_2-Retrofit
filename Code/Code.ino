@@ -8,7 +8,9 @@ int sck = 5;  //přiřazení vývodů
 int sda = 3;
 int rclk = 4;
 int anody[] = {10, 8, 7, 6, 12, 11};
-int znaky[] = {0b11110101, 0b00100001, 0b01110110, 0b00110111, 0b10100011, 0b10010111, 0b11010111, 0b00110001, 0b11110111, 0b10110111, 0b00000000}; //pole tvořící 7 SEG znaky
+int znaky[] = {0b11110101, 0b00100001, 0b01110110, 0b00110111, 0b10100011, 0b10010111, 0b11010111, 0b00110001, 0b11110111, 0b10110111, 0b00000000, 0b10110010, 0b11010100, 0b00000010}; //pole tvořící 7 SEG znaky 0-9,Blank, °,C,-
+//int znaky[] = {0b00000001, 0b00000010, 0b00000100, 0b00001000, 0b00010000, 0b00100000, 0b01000000, 0b10000000, 0b11111111, 0b00000000, 0b11111111}; //pole tvořící 7 SEG znaky0-9+blank [F,E,B,A,Dot,D,G,C]
+
 int shift = 0;  //číselný údaj pro seriový přenos
 int zobraz[] = {0, 0, 0, 0, 0, 0}; //buffer displeje
 int misto = 0;  //proměnná multiplexu 0-5
@@ -47,7 +49,17 @@ bool Izostat2state;
 
 #define Piezo 13
 
-
+#define ntc_pin A7         // Pin, to which the voltage divider is connected
+#define nominal_resistance 12000       //Nominal resistance at 25⁰C
+#define nominal_temeprature 25   // temperature for nominal resistance (almost always 25⁰ C)
+#define samplingrate 2    // Number of samples
+#define beta 3740  // The beta coefficient or the B value of the thermistor (usually 3000-4000) check the datasheet for the accurate value.
+#define Rref 11200   //Value of  resistor used for the voltage divider
+int samples = 0;   //array to store the samples
+float temperature;
+bool TempScan = 0;
+uint8_t i;
+float average;
 
 
 Funkuhr dcf(0, 2, 9, true);  //inicializace
@@ -60,7 +72,7 @@ void setup() {
   pinMode(sck, OUTPUT);
   pinMode(sda, OUTPUT);
   pinMode(rclk, OUTPUT);
-  // Serial.println("amogus");
+  Serial.println("amogus");
 
   dcf.init();
   ReviveAlarm();
@@ -79,133 +91,140 @@ void loop() {
     setTime(dt.hour, dt.min, dt.sec, dt.day, dt.month, dt.year); //synchronizace DCF a vnitřních hodin
   }
   ALMcounter++;
+  GetData();
   displaycounter++;
   if (ALMcounter > 80) {
     ALMcounter = 0;
   }
-  if(displaycounter > 50){
-displaycounter = 0;
-    
-  if (ALMcounter == 1) {
-    if (ALMaltflag == 1) {
-      if (ALMcounter == 1) { //360 = 1 minuta
-        ALMidleflag++;
-      }
-    }
+  if (displaycounter > 50) {
+    displaycounter = 0;
 
-    if (ALMon == 1) {
-      if (ALMcounter == 1) { //360 = 1 minuta
-        ALMtime++;
-      }
-    }
-
-    if (Button4state == 1) {
-
-      if (Button3state == 1 && Button4state == 1) {
-        ALMidleflag = 0;
-
-        if (ALMaltflag == 0) {
-          ALMaltflag = 1;
+    if (ALMcounter == 1) {
+      if (ALMaltflag == 1) {
+        if (ALMcounter == 1) { //360 = 1 minuta
+          ALMidleflag++;
         }
-        ALMpos1 = 0;
-        ALMpos2 = 0;
-        ALMpos3 = 0;
-        ALMpos4 = 0;
       }
 
-      if ( Button4state == 1 && Button1state == 1 && ALMcounter == 1) {
-        ALMpos2++;
-        ALMidleflag = 0;
-        if (ALMaltflag == 0) {
-          ALMaltflag = 1;
+      if (ALMon == 1) {
+        if (ALMcounter == 1) { //360 = 1 minuta
+          ALMtime++;
         }
+      }
 
-        if (ALMpos2 > 9) {
-          ALMpos2 = 0;
-          ALMpos1++;
-        }
+      if (Button4state == 1) {
 
-        if (ALMpos1 == 2 && ALMpos2 == 4) {
+        if (Button3state == 1 && Button4state == 1) {
+          ALMidleflag = 0;
+
+          if (ALMaltflag == 0) {
+            ALMaltflag = 1;
+          }
           ALMpos1 = 0;
           ALMpos2 = 0;
-        }
-      }
-
-      if ( Button4state == 1 && Button2state == 1 && ALMcounter == 1) {
-
-        ALMpos4++;
-        ALMidleflag = 0;
-        if (ALMaltflag == 0) {
-          ALMaltflag = 1;
-        }
-
-        if (ALMpos4 > 9) {
-          ALMpos4 = 0;
-          ALMpos3++;
-        }
-
-        if (ALMpos3 == 6 && ALMpos4 == 0) {
           ALMpos3 = 0;
           ALMpos4 = 0;
         }
+
+        if ( Button4state == 1 && Button1state == 1 && ALMcounter == 1) {
+          ALMpos2++;
+          ALMidleflag = 0;
+          if (ALMaltflag == 0) {
+            ALMaltflag = 1;
+          }
+
+          if (ALMpos2 > 9) {
+            ALMpos2 = 0;
+            ALMpos1++;
+          }
+
+          if (ALMpos1 == 2 && ALMpos2 == 4) {
+            ALMpos1 = 0;
+            ALMpos2 = 0;
+          }
+        }
+
+        if ( Button4state == 1 && Button2state == 1 && ALMcounter == 1) {
+
+          ALMpos4++;
+          ALMidleflag = 0;
+          if (ALMaltflag == 0) {
+            ALMaltflag = 1;
+          }
+
+          if (ALMpos4 > 9) {
+            ALMpos4 = 0;
+            ALMpos3++;
+          }
+
+          if (ALMpos3 == 6 && ALMpos4 == 0) {
+            ALMpos3 = 0;
+            ALMpos4 = 0;
+          }
+        }
+
+      }
+      if (ALMaltflag == 1 && ALMidleflag == 360) {
+        ALMaltflag = 0;
+        ALMidleflag = 0;
+        UpdateAlarm();
+      }
+
+      if (Izostat1state == 1 && ALMpos1 == (hour(t) / 10) && ALMpos2 == (hour(t) % 10) && ALMpos3 == (minute(t) / 10) && ALMpos4 == (minute(t) % 10) && 0 == (second(t) / 10) && 0 == (second(t) % 10)) {
+        //tone(Piezo, 250, 1000);
+        ALMon = 1;
+      }
+
+      if (ALMon == 1 && Izostat1state == 0) {    //pokud je ALARMflag ON a ALMtime je rovno nebo větší než 5 minut, tak vypni bordel
+        noTone(Piezo);
+        ALMon = 0;
+        ALMtime = 0;
+      }
+
+      if (ALMon == 1 && ALMtime > (ALMlimit * 720)) {  //pokud je ALARMflag ON a ALMtime je větší než 5 minut, tak vypni bordel
+        noTone(Piezo);
+        ALMon = 0;
+        ALMtime = 0;
+      }
+      if (ALMon == 1 && ALMtime < (ALMlimit * 720)) {  //pokud je ALARMflag ON a ALMtime je menší než 5 minut, tak dělej bordel
+        tone(Piezo, 300);
+      }
+    }
+    if (second(t) != secs) { //obládání blikání oddělovače.
+      dot5 = 1;
+      timer = millis();
+      secs = second(t);
+    }
+
+    if (Izostat1state == 1) {
+      if (millis() > timer + 100) { //100ms pro alarm flag = 1, 500ms pro alarm flag = 0
+        dot5 = 0;
+      }
+    }
+    else {
+      if (millis() > timer + 500) { //100ms pro alarm flag = 1, 500ms pro alarm flag = 0
+        dot5 = 0;
       }
 
     }
-    if (ALMaltflag == 1 && ALMidleflag == 360) {
-      ALMaltflag = 0;
-      ALMidleflag = 0;
-      UpdateAlarm();
+
+
+
+
+    if (second(t) == 59 || second(t) == 58) { //přepínání režimů zobrazení
+      TempScan = 0;
+      mode = 1;
+    }
+    else if (second(t) == 1 || second(t) == 2 ) { //přepínání režimů zobrazení 56,57
+
+      mode = 3;
+    }
+    else {
+      TempScan = 1;
+      mode = 0;
     }
 
-    if (Izostat1state == 1 && ALMpos1 == (hour(t) / 10) && ALMpos2 == (hour(t) % 10) && ALMpos3 == (minute(t) / 10) && ALMpos4 == (minute(t) % 10) && 0 == (second(t) / 10) && 0 == (second(t) % 10)) {
-      //tone(Piezo, 250, 1000);
-      ALMon = 1;
-    }
 
-    if (ALMon == 1 && Izostat1state == 0) {    //pokud je ALARMflag ON a ALMtime je rovno nebo větší než 5 minut, tak vypni bordel
-      noTone(Piezo);
-      ALMon = 0;
-      ALMtime = 0;
-    }
-
-    if (ALMon == 1 && ALMtime > (ALMlimit * 720)) {  //pokud je ALARMflag ON a ALMtime je větší než 5 minut, tak vypni bordel
-      noTone(Piezo);
-      ALMon = 0;
-      ALMtime = 0;
-    }
-    if (ALMon == 1 && ALMtime < (ALMlimit * 720)) {  //pokud je ALARMflag ON a ALMtime je menší než 5 minut, tak dělej bordel
-      tone(Piezo, 300);
-    }
-  }
-  if (second(t) != secs) { //obládání blikání oddělovače.
-    dot5 = 1;
-    timer = millis();
-    secs = second(t);
-  }
-
-  if (Izostat1state == 1) {
-    if (millis() > timer + 100) { //100ms pro alarm flag = 1, 500ms pro alarm flag = 0
-      dot5 = 0;
-    }
-  }
-  else {
-    if (millis() > timer + 500) { //100ms pro alarm flag = 1, 500ms pro alarm flag = 0
-      dot5 = 0;
-    }
-
-  }
-
-
-
-
-  if (second(t) == 59 ) { //přepínání režimů zobrazení
-    mode = 1;
-  }
-  else {
-    mode = 0;
-  }
-
-  GetData();
   }
 
   if (mode == 0) { //zápis údajů do bufferu displeje, čas
@@ -215,7 +234,7 @@ displaycounter = 0;
     zobraz[3] = minute(t) % 10;
     zobraz[4] = second(t) / 10;
     zobraz[5] = second(t) % 10;
-    dot[0] = 0;
+    dot[0] = !dcf.synced();
     dot[1] = 0;
     dot[2] = 0;
     dot[3] = 0;
@@ -249,6 +268,44 @@ displaycounter = 0;
     dot[1] = Button1state;
     dot[2] = Button2state;
     dot[3] = Button2state;
+    dot[4] = Button3state;
+    dot[5] = dot5;
+  }
+  if (mode == 3) {
+
+   /* if (TempScan = 0) {*/
+      samples = 0;
+      for (i = 0; i < samplingrate; i++) {
+        samples += analogRead(ntc_pin);
+      }
+
+      average = 0;
+      average = samples / samplingrate;
+      average = 1023 / average - 1;
+      average = Rref / average;
+      temperature = (average) / nominal_resistance;     // (R/Ro)
+      temperature = log(temperature);                  // ln(R/Ro)
+      temperature /= beta;                   // 1/B * ln(R/Ro)
+      temperature += 1.0 / (nominal_temeprature + 273.15); // + (1/To)
+      temperature = 1.0 / temperature;                 // Invert
+      temperature -= 273.15;// convert absolute temp to C
+      Serial.println(temperature);
+   // }
+    if (temperature < 0) {
+      zobraz[0] = 13;
+    } else {
+      zobraz[0] = 10;
+    }
+
+    zobraz[1] = temperature / 10;
+    zobraz[3] = ((temperature - int(temperature)) * 10);
+    zobraz[2] = (temperature - (zobraz[1] * 10 + zobraz[3] / 10));
+    zobraz[4] = 11; //°
+    zobraz[5] = 12; //C
+    dot[0] = 0;
+    dot[1] = 0;
+    dot[2] = 1;
+    dot[3] = 0;
     dot[4] = 0;
     dot[5] = dot5;
   }
@@ -262,6 +319,7 @@ displaycounter = 0;
       DISPLAYdim(misto);
     }
   }
+
 }
 
 void GetData() {
